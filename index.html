@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Finance Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/cdn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* Custom Styles */
+        body {
+            font-family: 'Inter', sans-serif; /* Using Inter font as default */
+        }
+        /* Style for active tab */
+        .tab-active {
+            border-color: #3b82f6; /* blue-500 */
+            color: #3b82f6;
+            background-color: #eff6ff; /* blue-50 */
+        }
+        /* Style for inactive tabs */
+        .tab-inactive {
+            border-color: transparent;
+            color: #6b7280; /* gray-500 */
+        }
+        /* Ensure tables are responsive */
+        .table-container {
+            overflow-x: auto;
+        }
+        /* Modal styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5); /* Dim background */
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 0.5rem;
+        }
+        /* Input styling */
+        input[type="text"], input[type="number"], input[type="date"], select {
+            border: 1px solid #d1d5db; /* gray-300 */
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem; /* rounded-md */
+            width: 100%;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6; /* blue-500 */
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+         /* Style number inputs to remove arrows (optional) */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        input[type=number] {
+          -moz-appearance: textfield; /* Firefox */
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">Personal Finance Tracker</h1>
+
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+                <button onclick="changeTab(event, 'dashboard')" class="tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-md tab-active" data-tab="dashboard">
+                    Dashboard
+                </button>
+                <button onclick="changeTab(event, 'openingBalance')" class="tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-md tab-inactive" data-tab="openingBalance">
+                    Opening Balance
+                </button>
+                <button onclick="changeTab(event, 'cash')" class="tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-md tab-inactive" data-tab="cash">
+                    Cash
+                </button>
+                <button onclick="changeTab(event, 'banks')" class="tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-md tab-inactive" data-tab="banks">
+                    Banks
+                </button>
+            </nav>
+        </div>
+
+        <div>
+            <div id="dashboard" class="tab-content">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Dashboard</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-blue-100 p-4 rounded-lg shadow">
+                        <h3 class="text-sm font-medium text-blue-800">Cash Balance</h3>
+                        <p id="db-cash-balance" class="text-2xl font-semibold text-blue-900">PKR 0.00</p>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-lg shadow">
+                        <h3 class="text-sm font-medium text-green-800">MBL-DMC Balance</h3>
+                        <p id="db-mbl-dmc-balance" class="text-2xl font-semibold text-green-900">PKR 0.00</p>
+                    </div>
+                    <div class="bg-yellow-100 p-4 rounded-lg shadow">
+                        <h3 class="text-sm font-medium text-yellow-800">MBL-KC Balance</h3>
+                        <p id="db-mbl-kc-balance" class="text-2xl font-semibold text-yellow-900">PKR 0.00</p>
+                    </div>
+                    <div class="bg-purple-100 p-4 rounded-lg shadow">
+                        <h3 class="text-sm font-medium text-purple-800">UBL-DMC Balance</h3>
+                        <p id="db-ubl-dmc-balance" class="text-2xl font-semibold text-purple-900">PKR 0.00</p>
+                    </div>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg shadow">
+                     <h3 class="text-lg font-semibold text-gray-700 mb-3 text-center">Balance Overview</h3>
+                    <canvas id="balanceChart" height="150"></canvas>
+                </div>
+            </div>
+
+            <div id="openingBalance" class="tab-content hidden">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Set Opening Balances</h2>
+                <p class="text-sm text-gray-600 mb-4">Enter your starting balances below. These values are set once and won't be affected by transactions.</p>
+                <div class="space-y-4 max-w-md mx-auto">
+                    <div>
+                        <label for="ob-cash" class="block text-sm font-medium text-gray-700 mb-1">Cash Opening Balance (PKR)</label>
+                        <input type="number" id="ob-cash" name="ob-cash" placeholder="e.g., 50000" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="ob-mbl-dmc" class="block text-sm font-medium text-gray-700 mb-1">MBL-DMC Opening Balance (PKR)</label>
+                        <input type="number" id="ob-mbl-dmc" name="ob-mbl-dmc" placeholder="e.g., 100000" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="ob-mbl-kc" class="block text-sm font-medium text-gray-700 mb-1">MBL-KC Opening Balance (PKR)</label>
+                        <input type="number" id="ob-mbl-kc" name="ob-mbl-kc" placeholder="e.g., 75000" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="ob-ubl-dmc" class="block text-sm font-medium text-gray-700 mb-1">UBL-DMC Opening Balance (PKR)</label>
+                        <input type="number" id="ob-ubl-dmc" name="ob-ubl-dmc" placeholder="e.g., 120000" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                    </div>
+                    <div class="flex space-x-4 pt-4">
+                        <button onclick="saveOpeningBalances()" class="flex-1 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Save Opening Balances
+                        </button>
+                        <button onclick="resetOpeningBalances()" class="flex-1 inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Reset Fields
+                        </button>
+                    </div>
+                     <p id="ob-status" class="text-sm text-center mt-2"></p>
+                </div>
+            </div>
+
+            <div id="cash" class="tab-content hidden">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Cash Transactions</h2>
+                 <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h3 class="text-sm font-medium text-blue-700">Cash Opening Balance</h3>
+                    <p id="cash-opening-balance-display" class="text-lg font-semibold text-blue-800">PKR 0.00</p>
+                </div>
+                 <div class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+                    <h3 class="text-sm font-medium text-green-700">Current Cash Balance</h3>
+                    <p id="cash-current-balance-display" class="text-lg font-semibold text-green-800">PKR 0.00</p>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-lg shadow mb-6">
+                    <h3 class="text-lg font-medium text-gray-800 mb-3">Add Cash Transaction</h3>
+                    <form id="cash-tx-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="hidden" id="cash-tx-id"> <div>
+                            <label for="cash-tx-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <input type="date" id="cash-tx-date" required>
+                        </div>
+                        <div>
+                            <label for="cash-tx-category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select id="cash-tx-category" required>
+                                </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="cash-tx-desc" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <input type="text" id="cash-tx-desc" placeholder="e.g., Weekly groceries" required>
+                        </div>
+                         <div>
+                            <label for="cash-tx-debit" class="block text-sm font-medium text-gray-700 mb-1">Debit (PKR)</label>
+                            <input type="number" id="cash-tx-debit" placeholder="0.00" step="0.01" min="0">
+                        </div>
+                        <div>
+                            <label for="cash-tx-credit" class="block text-sm font-medium text-gray-700 mb-1">Credit (PKR)</label>
+                            <input type="number" id="cash-tx-credit" placeholder="0.00" step="0.01" min="0">
+                        </div>
+                        <div class="md:col-span-2 flex justify-end space-x-3">
+                             <button type="button" onclick="clearCashForm()" class="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Clear Form
+                            </button>
+                            <button type="submit" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Add/Update Transaction
+                            </button>
+                        </div>
+                         <p id="cash-form-status" class="text-sm md:col-span-2 text-center mt-1"></p>
+                    </form>
+                </div>
+
+                <h3 class="text-lg font-medium text-gray-800 mb-3">Cash Transaction History</h3>
+                <div class="table-container bg-white rounded-lg shadow overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Debit</th>
+                                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Credit</th>
+                                <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cash-tx-table-body" class="bg-white divide-y divide-gray-200">
+                            <tr><td colspan="6" class="text-center py-4 text-gray-500">No cash transactions yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                 <div class="mt-6 flex justify-end space-x-3">
+                     <button onclick="exportCashToExcel()" class="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Export to Excel
+                    </button>
+                 </div>
+            </div>
+
+            <div id="banks" class="tab-content hidden">
+                 <h2 class="text-xl font-semibold text-gray-700 mb-4">Bank Transactions</h2>
+                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                     <div class="p-4 bg-green-50 rounded-lg border border-green-200">
+                        <h3 class="text-sm font-medium text-green-700">MBL-DMC Opening Balance</h3>
+                        <p id="bank-mbl-dmc-opening-display" class="text-lg font-semibold text-green-800">PKR 0.00</p>
+                    </div>
+                     <div class="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <h3 class="text-sm font-medium text-yellow-700">MBL-KC Opening Balance</h3>
+                        <p id="bank-mbl-kc-opening-display" class="text-lg font-semibold text-yellow-800">PKR 0.00</p>
+                    </div>
+                     <div class="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                        <h3 class="text-sm font-medium text-purple-700">UBL-DMC Opening Balance</h3>
+                        <p id="bank-ubl-dmc-opening-display" class="text-lg font-semibold text-purple-800">PKR 0.00</p>
+                    </div>
+                </div>
+                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                     <div class="p-4 bg-green-100 rounded-lg border border-green-300">
+                        <h3 class="text-sm font-medium text-green-800">Current MBL-DMC Balance</h3>
+                        <p id="bank-mbl-dmc-current-display" class="text-lg font-semibold text-green-900">PKR 0.00</p>
+                    </div>
+                     <div class="p-4 bg-yellow-100 rounded-lg border border-yellow-300">
+                        <h3 class="text-sm font-medium text-yellow-800">Current MBL-KC Balance</h3>
+                        <p id="bank-mbl-kc-current-display" class="text-lg font-semibold text-yellow-900">PKR 0.00</p>
+                    </div>
+                     <div class="p-4 bg-purple-100 rounded-lg border border-purple-300">
+                        <h3 class="text-sm font-medium text-purple-800">Current UBL-DMC Balance</h3>
+                        <p id="bank-ubl-dmc-current-display" class="text-lg font-semibold text-purple-900">PKR 0.00</p>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-lg shadow mb-6">
+                    <h3 class="text-lg font-medium text-gray-800 mb-3">Add Bank Transaction</h3>
+                    <form id="bank-tx-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <input type="hidden" id="bank-tx-id"> <div>
+                            <label for="bank-tx-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <input type="date" id="bank-tx-date" required>
+                        </div>
+                         <div>
+                            <label for="bank-tx-account" class="block text-sm font-medium text-gray-700 mb-1">Bank Account</label>
+                            <select id="bank-tx-account" required>
+                                <option value="MBL-DMC">MBL-DMC</option>
+                                <option value="MBL-KC">MBL-KC</option>
+                                <option value="UBL-DMC">UBL-DMC</option>
+                            </select>
+                        </div>
+                         <div>
+                            <label for="bank-tx-category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select id="bank-tx-category" required>
+                                </select>
+                        </div>
+                         <div >
+                            <label for="bank-tx-desc" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <input type="text" id="bank-tx-desc" placeholder="e.g., Salary deposit" required>
+                        </div>
+                         <div>
+                            <label for="bank-tx-debit" class="block text-sm font-medium text-gray-700 mb-1">Debit (PKR)</label>
+                            <input type="number" id="bank-tx-debit" placeholder="0.00" step="0.01" min="0">
+                        </div>
+                        <div>
+                            <label for="bank-tx-credit" class="block text-sm font-medium text-gray-700 mb-1">Credit (PKR)</label>
+                            <input type="number" id="bank-tx-credit" placeholder="0.00" step="0.01" min="0">
+                        </div>
+                        <div class="md:col-span-2 flex justify-end space-x-3">
+                            <button type="button" onclick="clearBankForm()" class="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Clear Form
+                            </button>
+                            <button type="submit" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Add/Update Transaction
+                            </button>
+                        </div>
+                         <p id="bank-form-status" class="text-sm md:col-span-2 text-center mt-1"></p>
+                    </form>
+                </div>
+
+                <h3 class="text-lg font-medium text-gray-800 mb-3">Bank Transaction History</h3>
+                <div class="table-container bg-white rounded-lg shadow overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Debit</th>
+                                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Credit</th>
+                                <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bank-tx-table-body" class="bg-white divide-y divide-gray-200">
+                            <tr><td colspan="7" class="text-center py-4 text-gray-500">No bank transactions yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                 <div class="mt-6 flex justify-end space-x-3">
+                     <button onclick="exportBankToExcel()" class="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Export to Excel
+                    </button>
+                 </div>
+            </div>
+        </div>
+
+        <div id="editModal" class="modal flex"> <div class="modal-content">
+                <h3 class="text-lg font-medium text-gray-800 mb-4">Edit Transaction</h3>
+                <form id="edit-tx-form">
+                    <input type="hidden" id="edit-tx-id">
+                     <input type="hidden" id="edit-tx-type"> <div class="mb-3">
+                        <label for="edit-tx-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <input type="date" id="edit-tx-date" required>
+                    </div>
+
+                    <div id="edit-bank-account-field" class="mb-3 hidden">
+                        <label for="edit-tx-account" class="block text-sm font-medium text-gray-700 mb-1">Bank Account</label>
+                        <select id="edit-tx-account" required>
+                            <option value="MBL-DMC">MBL-DMC</option>
+                            <option value="MBL-KC">MBL-KC</option>
+                            <option value="UBL-DMC">UBL-DMC</option>
+                        </select>
+                    </div>
+
+                     <div class="mb-3">
+                        <label for="edit-tx-category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <select id="edit-tx-category" required>
+                            </select>
+                    </div>
+
+                     <div class="mb-3">
+                        <label for="edit-tx-desc" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <input type="text" id="edit-tx-desc" required>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                         <div>
+                            <label for="edit-tx-debit" class="block text-sm font-medium text-gray-700 mb-1">Debit (PKR)</label>
+                            <input type="number" id="edit-tx-debit" placeholder="0.00" step="0.01" min="0">
+                        </div>
+                        <div>
+                            <label for="edit-tx-credit" class="block text-sm font-medium text-gray-700 mb-1">Credit (PKR)</label>
+                            <input type="number" id="edit-tx-credit" placeholder="0.00" step="0.01" min="0">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeEditModal()" class="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Cancel
+                        </button>
+                        <button type="submit" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Save Changes
+                        </button>
+                    </div>
+                     <p id="edit-form-status" class="text-sm text-center mt-2"></p>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Globals ---
+        let openingBalances = {
+            cash: 0,
+            'MBL-DMC': 0,
+            'MBL-KC': 0,
+            'UBL-DMC': 0
+        };
+        let cashTransactions = [];
+        let bankTransactions = [];
+        let balanceChart = null; // To hold the chart instance
+
+        // --- Categories ---
+        const cashCategories = [
+            "Cash Deposit", "Cash Withdrawal", "Grocery (Imtiaz)", "Grocery (LS)",
+            "Monthly Expenses", "Online Payment", "Other Deduction", "Other Expenses",
+            "Personal Expenses", "Utilities"
+        ].sort(); // Ensure alphabetical order
+
+        const bankCategories = [
+            "Amount Received from UBL to KC", "Cash Deposit", "Cash Withdrawal", "Grocery",
+            "MBL-DMC Profit", "MBL-KC Profit", "Monthly Expenses", "Online Payment",
+            "Other Deduction", "Other Expenses", "Personal Expenses", "Profit Deduction",
+            "Rent", "Salary", "Salary Tax Deduction", "Transfer from MBL to UBL",
+            "Transfer from UBL to KC", "Transport Fee", "Utilities"
+        ].sort(); // Ensure alphabetical order
+
+        // --- Utility Functions ---
+
+        // Format number as PKR currency
+        function formatCurrency(amount) {
+            const num = Number(amount) || 0;
+            // Handle potential floating point inaccuracies for display
+            const fixedAmount = num.toFixed(2);
+            return `PKR ${parseFloat(fixedAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
+        // Format date as DD-MMM-YYYY (e.g., 05-May-2025)
+        // Requires date-fns library
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            try {
+                // Parse ISO date string (YYYY-MM-DD) or Date object
+                const date = new Date(dateString);
+                 // Add time zone offset to prevent date shifting
+                 const offset = date.getTimezoneOffset() * 60000;
+                 const adjustedDate = new Date(date.getTime() + offset);
+                return dateFns.format(adjustedDate, 'dd-MMM-yyyy');
+            } catch (e) {
+                console.error("Error formatting date:", e);
+                return dateString; // Fallback
+            }
+        }
+
+         // Get date in YYYY-MM-DD format for date input value
+        function getISODate(date = new Date()) {
+            return date.toISOString().split('T')[0];
+        }
+
+        // Generate unique ID for transactions
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        // Show status messages
+        function showStatus(elementId, message, isError = false, duration = 3000) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            element.textContent = message;
+            element.className = `text-sm text-center mt-2 ${isError ? 'text-red-600' : 'text-green-600'}`;
+            setTimeout(() => {
+                 if (element.textContent === message) { // Clear only if message hasn't changed
+                    element.textContent = '';
+                 }
+            }, duration);
+        }
+
+
+        // --- Local Storage Functions ---
+
+        function saveData() {
+            localStorage.setItem('openingBalances', JSON.stringify(openingBalances));
+            localStorage.setItem('cashTransactions', JSON.stringify(cashTransactions));
+            localStorage.setItem('bankTransactions', JSON.stringify(bankTransactions));
+            console.log("Data saved to local storage.");
+        }
+
+        function loadData() {
+            const obData = localStorage.getItem('openingBalances');
+            const cashTxData = localStorage.getItem('cashTransactions');
+            const bankTxData = localStorage.getItem('bankTransactions');
+
+            if (obData) {
+                openingBalances = JSON.parse(obData);
+                 // Ensure all keys exist
+                 openingBalances.cash = openingBalances.cash || 0;
+                 openingBalances['MBL-DMC'] = openingBalances['MBL-DMC'] || 0;
+                 openingBalances['MBL-KC'] = openingBalances['MBL-KC'] || 0;
+                 openingBalances['UBL-DMC'] = openingBalances['UBL-DMC'] || 0;
+            }
+            if (cashTxData) {
+                cashTransactions = JSON.parse(cashTxData);
+            }
+            if (bankTxData) {
+                bankTransactions = JSON.parse(bankTxData);
+            }
+             console.log("Data loaded from local storage.");
+        }
+
+        // --- Calculation Functions ---
+
+        function calculateCurrentBalances() {
+            let currentCash = openingBalances.cash;
+            cashTransactions.forEach(tx => {
+                currentCash += (Number(tx.credit) || 0) - (Number(tx.debit) || 0);
+            });
+
+            let currentMblDmc = openingBalances['MBL-DMC'];
+            let currentMblKc = openingBalances['MBL-KC'];
+            let currentUblDmc = openingBalances['UBL-DMC'];
+
+            bankTransactions.forEach(tx => {
+                const credit = Number(tx.credit) || 0;
+                const debit = Number(tx.debit) || 0;
+                switch (tx.account) {
+                    case 'MBL-DMC':
+                        currentMblDmc += credit - debit;
+                        break;
+                    case 'MBL-KC':
+                        currentMblKc += credit - debit;
+                        break;
+                    case 'UBL-DMC':
+                        currentUblDmc += credit - debit;
+                        break;
+                }
+            });
+
+            return {
+                cash: currentCash,
+                'MBL-DMC': currentMblDmc,
+                'MBL-KC': currentMblKc,
+                'UBL-DMC': currentUblDmc
+            };
+        }
+
+        // --- UI Update Functions ---
+
+        function updateDashboard() {
+            const currentBalances = calculateCurrentBalances();
+            document.getElementById('db-cash-balance').textContent = formatCurrency(currentBalances.cash);
+            document.getElementById('db-mbl-dmc-balance').textContent = formatCurrency(currentBalances['MBL-DMC']);
+            document.getElementById('db-mbl-kc-balance').textContent = formatCurrency(currentBalances['MBL-KC']);
+            document.getElementById('db-ubl-dmc-balance').textContent = formatCurrency(currentBalances['UBL-DMC']);
+
+            updateChart(currentBalances);
+        }
+
+        function updateOpeningBalanceTab() {
+            // Update input fields if they are empty (don't overwrite user input)
+             if (!document.getElementById('ob-cash').value) document.getElementById('ob-cash').value = openingBalances.cash || '';
+             if (!document.getElementById('ob-mbl-dmc').value) document.getElementById('ob-mbl-dmc').value = openingBalances['MBL-DMC'] || '';
+             if (!document.getElementById('ob-mbl-kc').value) document.getElementById('ob-mbl-kc').value = openingBalances['MBL-KC'] || '';
+             if (!document.getElementById('ob-ubl-dmc').value) document.getElementById('ob-ubl-dmc').value = openingBalances['UBL-DMC'] || '';
+        }
+
+        function updateCashTab() {
+             const currentBalances = calculateCurrentBalances();
+             document.getElementById('cash-opening-balance-display').textContent = formatCurrency(openingBalances.cash);
+             document.getElementById('cash-current-balance-display').textContent = formatCurrency(currentBalances.cash);
+             renderCashTransactions();
+        }
+
+         function updateBankTab() {
+             const currentBalances = calculateCurrentBalances();
+             document.getElementById('bank-mbl-dmc-opening-display').textContent = formatCurrency(openingBalances['MBL-DMC']);
+             document.getElementById('bank-mbl-kc-opening-display').textContent = formatCurrency(openingBalances['MBL-KC']);
+             document.getElementById('bank-ubl-dmc-opening-display').textContent = formatCurrency(openingBalances['UBL-DMC']);
+
+             document.getElementById('bank-mbl-dmc-current-display').textContent = formatCurrency(currentBalances['MBL-DMC']);
+             document.getElementById('bank-mbl-kc-current-display').textContent = formatCurrency(currentBalances['MBL-KC']);
+             document.getElementById('bank-ubl-dmc-current-display').textContent = formatCurrency(currentBalances['UBL-DMC']);
+             renderBankTransactions();
+        }
+
+        function populateCategoryDropdown(selectId, categories) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '<option value="">-- Select Category --</option>'; // Default option
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                select.appendChild(option);
+            });
+        }
+
+        function renderCashTransactions() {
+            const tbody = document.getElementById('cash-tx-table-body');
+            tbody.innerHTML = ''; // Clear existing rows
+
+            if (cashTransactions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">No cash transactions yet.</td></tr>';
+                return;
+            }
+
+            // Sort transactions by date, most recent first
+            const sortedTransactions = [...cashTransactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+
+            sortedTransactions.forEach(tx => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${formatDate(tx.date)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-700">${tx.desc}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${tx.category}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-red-600 text-right">${tx.debit > 0 ? formatCurrency(tx.debit) : '-'}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-green-600 text-right">${tx.credit > 0 ? formatCurrency(tx.credit) : '-'}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-center space-x-2">
+                        <button onclick="editTransaction('${tx.id}', 'cash')" class="text-indigo-600 hover:text-indigo-900">Edit</button>
+                        <button onclick="deleteTransaction('${tx.id}', 'cash')" class="text-red-600 hover:text-red-900">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+         function renderBankTransactions() {
+            const tbody = document.getElementById('bank-tx-table-body');
+            tbody.innerHTML = ''; // Clear existing rows
+
+            if (bankTransactions.length === 0) {
+                 tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">No bank transactions yet.</td></tr>';
+                return;
+            }
+
+             // Sort transactions by date, most recent first
+            const sortedTransactions = [...bankTransactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+
+            sortedTransactions.forEach(tx => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${formatDate(tx.date)}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${tx.account}</td>
+                    <td class="px-4 py-3 text-sm text-gray-700">${tx.desc}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${tx.category}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-red-600 text-right">${tx.debit > 0 ? formatCurrency(tx.debit) : '-'}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-green-600 text-right">${tx.credit > 0 ? formatCurrency(tx.credit) : '-'}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-center space-x-2">
+                        <button onclick="editTransaction('${tx.id}', 'bank')" class="text-indigo-600 hover:text-indigo-900">Edit</button>
+                        <button onclick="deleteTransaction('${tx.id}', 'bank')" class="text-red-600 hover:text-red-900">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // --- Chart Functions ---
+
+        function initializeChart() {
+            const ctx = document.getElementById('balanceChart').getContext('2d');
+            balanceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Cash', 'MBL-DMC', 'MBL-KC', 'UBL-DMC'],
+                    datasets: [{
+                        label: 'Current Balance (PKR)',
+                        data: [0, 0, 0, 0], // Initial data
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.6)', // blue-500
+                            'rgba(16, 185, 129, 0.6)', // green-500
+                            'rgba(245, 158, 11, 0.6)', // yellow-500 (amber-500)
+                            'rgba(139, 92, 246, 0.6)'  // purple-500 (violet-500)
+                        ],
+                        borderColor: [
+                            'rgba(59, 130, 246, 1)',
+                            'rgba(16, 185, 129, 1)',
+                            'rgba(245, 158, 11, 1)',
+                            'rgba(139, 92, 246, 1)'
+                        ],
+                        borderWidth: 1,
+                        borderRadius: 5 // Rounded corners for bars
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true, // Adjust as needed
+                     indexAxis: 'y', // Make it a horizontal bar chart for better label readability if needed
+                    scales: {
+                        x: { // Changed from yAxes to x for Chart.js v3+
+                            beginAtZero: true,
+                             ticks: {
+                                callback: function(value, index, values) {
+                                    return 'PKR ' + value.toLocaleString('en-IN');
+                                }
+                            }
+                        },
+                        y: { // Changed from xAxes to y
+                             grid: {
+                                display: false // Hide vertical grid lines if desired
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false // Hide legend if only one dataset
+                        },
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.x !== null) {
+                                         label += formatCurrency(context.parsed.x);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart(balances) {
+            if (!balanceChart) return;
+            balanceChart.data.datasets[0].data = [
+                balances.cash,
+                balances['MBL-DMC'],
+                balances['MBL-KC'],
+                balances['UBL-DMC']
+            ];
+            balanceChart.update();
+        }
+
+
+        // --- Event Handlers & Actions ---
+
+        function changeTab(event, tabId) {
+            // Hide all tab content
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            // Deactivate all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('tab-active');
+                button.classList.add('tab-inactive');
+            });
+
+            // Show the selected tab content
+            document.getElementById(tabId).classList.remove('hidden');
+            // Activate the selected tab button
+            event.currentTarget.classList.remove('tab-inactive');
+            event.currentTarget.classList.add('tab-active');
+        }
+
+        function saveOpeningBalances() {
+            const cash = parseFloat(document.getElementById('ob-cash').value) || 0;
+            const mblDmc = parseFloat(document.getElementById('ob-mbl-dmc').value) || 0;
+            const mblKc = parseFloat(document.getElementById('ob-mbl-kc').value) || 0;
+            const ublDmc = parseFloat(document.getElementById('ob-ubl-dmc').value) || 0;
+
+            openingBalances = {
+                cash: cash,
+                'MBL-DMC': mblDmc,
+                'MBL-KC': mblKc,
+                'UBL-DMC': ublDmc
+            };
+
+            saveData();
+            updateAllUI(); // Update all relevant parts of the UI
+             showStatus('ob-status', 'Opening balances saved successfully!', false);
+        }
+
+        function resetOpeningBalances() {
+            if (confirm("Are you sure you want to clear the opening balance fields? This will not erase saved balances unless you save again with zero values.")) {
+                document.getElementById('ob-cash').value = '';
+                document.getElementById('ob-mbl-dmc').value = '';
+                document.getElementById('ob-mbl-kc').value = '';
+                document.getElementById('ob-ubl-dmc').value = '';
+                document.getElementById('ob-status').textContent = ''; // Clear status
+            }
+        }
+
+         function clearCashForm() {
+            document.getElementById('cash-tx-form').reset();
+            document.getElementById('cash-tx-id').value = ''; // Clear hidden ID
+            document.getElementById('cash-tx-date').value = getISODate(); // Reset date to today
+            document.getElementById('cash-form-status').textContent = '';
+        }
+
+         function clearBankForm() {
+            document.getElementById('bank-tx-form').reset();
+            document.getElementById('bank-tx-id').value = ''; // Clear hidden ID
+            document.getElementById('bank-tx-date').value = getISODate(); // Reset date to today
+             document.getElementById('bank-form-status').textContent = '';
+        }
+
+
+        // Handle Cash Transaction Form Submission
+        document.getElementById('cash-tx-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = document.getElementById('cash-tx-id').value;
+            const date = document.getElementById('cash-tx-date').value;
+            const desc = document.getElementById('cash-tx-desc').value.trim();
+            const category = document.getElementById('cash-tx-category').value;
+            const debit = parseFloat(document.getElementById('cash-tx-debit').value) || 0;
+            const credit = parseFloat(document.getElementById('cash-tx-credit').value) || 0;
+
+            if (!date || !desc || !category) {
+                 showStatus('cash-form-status', 'Please fill in Date, Description, and Category.', true);
+                return;
+            }
+            if (debit === 0 && credit === 0) {
+                 showStatus('cash-form-status', 'Please enter either a Debit or Credit amount.', true);
+                return;
+            }
+             if (debit > 0 && credit > 0) {
+                 showStatus('cash-form-status', 'Cannot enter both Debit and Credit for a single transaction.', true);
+                return;
+            }
+
+
+            const transaction = { date, desc, category, debit, credit };
+
+            if (id) { // Editing existing transaction
+                const index = cashTransactions.findIndex(tx => tx.id === id);
+                if (index > -1) {
+                    cashTransactions[index] = { ...cashTransactions[index], ...transaction };
+                     showStatus('cash-form-status', 'Transaction updated successfully!', false);
+                }
+            } else { // Adding new transaction
+                transaction.id = generateId();
+                cashTransactions.push(transaction);
+                 showStatus('cash-form-status', 'Transaction added successfully!', false);
+            }
+
+            saveData();
+            updateAllUI();
+            clearCashForm(); // Reset form after successful submission
+        });
+
+        // Handle Bank Transaction Form Submission
+        document.getElementById('bank-tx-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = document.getElementById('bank-tx-id').value;
+            const date = document.getElementById('bank-tx-date').value;
+            const account = document.getElementById('bank-tx-account').value;
+            const desc = document.getElementById('bank-tx-desc').value.trim();
+            const category = document.getElementById('bank-tx-category').value;
+            const debit = parseFloat(document.getElementById('bank-tx-debit').value) || 0;
+            const credit = parseFloat(document.getElementById('bank-tx-credit').value) || 0;
+
+             if (!date || !account || !desc || !category) {
+                 showStatus('bank-form-status', 'Please fill in Date, Account, Description, and Category.', true);
+                return;
+            }
+            if (debit === 0 && credit === 0) {
+                 showStatus('bank-form-status', 'Please enter either a Debit or Credit amount.', true);
+                return;
+            }
+             if (debit > 0 && credit > 0) {
+                 showStatus('bank-form-status', 'Cannot enter both Debit and Credit for a single transaction.', true);
+                return;
+            }
+
+            const transaction = { date, account, desc, category, debit, credit };
+
+            if (id) { // Editing existing transaction
+                const index = bankTransactions.findIndex(tx => tx.id === id);
+                if (index > -1) {
+                    bankTransactions[index] = { ...bankTransactions[index], ...transaction };
+                     showStatus('bank-form-status', 'Transaction updated successfully!', false);
+                }
+            } else { // Adding new transaction
+                transaction.id = generateId();
+                bankTransactions.push(transaction);
+                 showStatus('bank-form-status', 'Transaction added successfully!', false);
+            }
+
+            saveData();
+            updateAllUI();
+            clearBankForm(); // Reset form after successful submission
+        });
+
+
+        // --- Edit/Delete Functions ---
+
+        function editTransaction(id, type) {
+            const transaction = (type === 'cash' ? cashTransactions : bankTransactions).find(tx => tx.id === id);
+            if (!transaction) return;
+
+            // Populate modal form
+            document.getElementById('edit-tx-id').value = transaction.id;
+            document.getElementById('edit-tx-type').value = type;
+            document.getElementById('edit-tx-date').value = transaction.date; // Assumes date is stored as YYYY-MM-DD
+            document.getElementById('edit-tx-desc').value = transaction.desc;
+            document.getElementById('edit-tx-debit').value = transaction.debit || '';
+            document.getElementById('edit-tx-credit').value = transaction.credit || '';
+
+            const categorySelect = document.getElementById('edit-tx-category');
+            const categories = type === 'cash' ? cashCategories : bankCategories;
+            populateCategoryDropdown('edit-tx-category', categories);
+            categorySelect.value = transaction.category;
+
+            const bankAccountField = document.getElementById('edit-bank-account-field');
+            const bankAccountSelect = document.getElementById('edit-tx-account');
+            if (type === 'bank') {
+                bankAccountField.classList.remove('hidden');
+                bankAccountSelect.value = transaction.account;
+            } else {
+                bankAccountField.classList.add('hidden');
+            }
+
+             document.getElementById('edit-form-status').textContent = ''; // Clear previous status
+            // Show modal
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        // Handle Edit Form Submission (inside modal)
+        document.getElementById('edit-tx-form').addEventListener('submit', function(e) {
+             e.preventDefault();
+             const id = document.getElementById('edit-tx-id').value;
+             const type = document.getElementById('edit-tx-type').value;
+             const date = document.getElementById('edit-tx-date').value;
+             const desc = document.getElementById('edit-tx-desc').value.trim();
+             const category = document.getElementById('edit-tx-category').value;
+             const debit = parseFloat(document.getElementById('edit-tx-debit').value) || 0;
+             const credit = parseFloat(document.getElementById('edit-tx-credit').value) || 0;
+             const account = type === 'bank' ? document.getElementById('edit-tx-account').value : undefined;
+
+             if (!date || !desc || !category || (type === 'bank' && !account)) {
+                 showStatus('edit-form-status', 'Please fill all required fields.', true);
+                 return;
+             }
+             if (debit === 0 && credit === 0) {
+                  showStatus('edit-form-status', 'Please enter either a Debit or Credit amount.', true);
+                 return;
+             }
+             if (debit > 0 && credit > 0) {
+                  showStatus('edit-form-status', 'Cannot enter both Debit and Credit.', true);
+                 return;
+             }
+
+             const updatedTxData = { date, desc, category, debit, credit, account };
+
+             if (type === 'cash') {
+                 const index = cashTransactions.findIndex(tx => tx.id === id);
+                 if (index > -1) {
+                     cashTransactions[index] = { ...cashTransactions[index], ...updatedTxData };
+                 }
+             } else { // bank
+                 const index = bankTransactions.findIndex(tx => tx.id === id);
+                 if (index > -1) {
+                     bankTransactions[index] = { ...bankTransactions[index], ...updatedTxData };
+                 }
+             }
+
+             saveData();
+             updateAllUI();
+             closeEditModal();
+             // Optionally show a success message on the main tab's status area
+             const statusElementId = type === 'cash' ? 'cash-form-status' : 'bank-form-status';
+              showStatus(statusElementId, 'Transaction updated successfully!', false);
+        });
+
+
+        function deleteTransaction(id, type) {
+            if (!confirm('Are you sure you want to delete this transaction? This action cannot be undone.')) {
+                return;
+            }
+
+            if (type === 'cash') {
+                cashTransactions = cashTransactions.filter(tx => tx.id !== id);
+            } else { // bank
+                bankTransactions = bankTransactions.filter(tx => tx.id !== id);
+            }
+
+            saveData();
+            updateAllUI();
+             // Optionally show a success message
+             const statusElementId = type === 'cash' ? 'cash-form-status' : 'bank-form-status';
+             showStatus(statusElementId, 'Transaction deleted successfully.', false);
+        }
+
+        // --- Export Functions ---
+
+        function exportToExcel(data, filename, sheetname) {
+            // Prepare data for SheetJS: array of objects
+             const ws_data = data.map(tx => {
+                // Create a new object to control property order and formatting
+                let row = {
+                    Date: formatDate(tx.date), // Format date for Excel
+                    Description: tx.desc,
+                    Category: tx.category,
+                };
+                 // Add Account column only for bank transactions
+                 if (tx.account) {
+                    row.Account = tx.account;
+                 }
+
+                 row.Debit = tx.debit || 0; // Ensure numbers
+                 row.Credit = tx.credit || 0; // Ensure numbers
+
+                 return row;
+             });
+
+
+            const ws = XLSX.utils.json_to_sheet(ws_data);
+
+             // Optional: Adjust column widths (example)
+            const cols = Object.keys(ws_data[0] || {}).map(key => ({ wch: Math.max(key.length, 15) })); // Basic width estimation
+            ws['!cols'] = cols;
+
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, sheetname);
+
+            // Trigger download
+            XLSX.writeFile(wb, filename);
+        }
+
+        function exportCashToExcel() {
+             if (cashTransactions.length === 0) {
+                 alert("No cash transactions to export.");
+                 return;
+             }
+             // Sort by date before exporting
+             const sortedData = [...cashTransactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+             exportToExcel(sortedData, 'Cash_Transactions.xlsx', 'Cash');
+        }
+
+         function exportBankToExcel() {
+             if (bankTransactions.length === 0) {
+                 alert("No bank transactions to export.");
+                 return;
+             }
+              // Sort by date before exporting
+             const sortedData = [...bankTransactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+             exportToExcel(sortedData, 'Bank_Transactions.xlsx', 'Banks');
+        }
+
+
+        // --- Initialization ---
+
+        function updateAllUI() {
+            updateDashboard();
+            updateOpeningBalanceTab(); // Reflect saved OBs in the input fields
+            updateCashTab();
+            updateBankTab();
+        }
+
+        function initializeApp() {
+            loadData();
+
+            // Populate category dropdowns
+            populateCategoryDropdown('cash-tx-category', cashCategories);
+            populateCategoryDropdown('bank-tx-category', bankCategories);
+
+            // Set default dates for forms
+            document.getElementById('cash-tx-date').value = getISODate();
+            document.getElementById('bank-tx-date').value = getISODate();
+
+
+            initializeChart();
+            updateAllUI(); // Initial UI render based on loaded data
+
+            // Set initial active tab (optional, defaults to Dashboard)
+            // changeTab({ currentTarget: document.querySelector('.tab-button[data-tab="dashboard"]') }, 'dashboard');
+             console.log("App Initialized");
+        }
+
+        // Run initialization when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+    </script>
+
+</body>
+</html>
